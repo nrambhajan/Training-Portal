@@ -6,7 +6,31 @@ import toast from "react-hot-toast";
 import {
   ArrowLeft, CheckCircle, XCircle, Clock, Terminal, List, FileText,
   ChevronDown, ChevronUp, AlertCircle, ThumbsUp, ThumbsDown, RefreshCw,
+  Download, Award, MessageSquare,
 } from "lucide-react";
+
+// Authenticated file download helper
+async function downloadFile(url, fallbackName) {
+  try {
+    const res = await api.get(url, { responseType: "blob" });
+    const blob = new Blob([res.data]);
+    const cd = res.headers["content-disposition"];
+    let filename = fallbackName;
+    if (cd) {
+      const match = cd.match(/filename="?([^"]+)"?/);
+      if (match) filename = match[1];
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  } catch {
+    toast.error("Download failed");
+  }
+}
 
 const TYPE_ICON = {
   mcq: <List size={14} className="text-blue-500" />,
@@ -37,6 +61,8 @@ export default function AdminTraineeDetail() {
   const [data, setData] = useState(null);
   const [expanded, setExpanded] = useState({});
   const [grading, setGrading] = useState({});
+  const [notes, setNotes] = useState({});
+  const [savingNote, setSavingNote] = useState({});
 
   function fetchData() {
     api.get(`/dashboard/trainee/${traineeId}`).then((r) => setData(r.data));
@@ -60,13 +86,32 @@ export default function AdminTraineeDetail() {
   async function handleGrade(attemptId, isCorrect) {
     setGrading((prev) => ({ ...prev, [attemptId]: true }));
     try {
-      await api.put(`/dashboard/grade/${attemptId}`, { is_correct: isCorrect });
+      await api.put(`/dashboard/grade/${attemptId}`, {
+        is_correct: isCorrect,
+        admin_notes: notes[attemptId] || undefined,
+      });
       toast.success(isCorrect ? "Marked correct" : "Marked incorrect");
       fetchData();
     } catch {
       toast.error("Failed to grade");
     } finally {
       setGrading((prev) => ({ ...prev, [attemptId]: false }));
+    }
+  }
+
+  async function handleSaveNote(attemptId, currentCorrect) {
+    setSavingNote((prev) => ({ ...prev, [attemptId]: true }));
+    try {
+      await api.put(`/dashboard/grade/${attemptId}`, {
+        is_correct: currentCorrect,
+        admin_notes: notes[attemptId] || "",
+      });
+      toast.success("Comment saved!");
+      fetchData();
+    } catch {
+      toast.error("Failed to save comment");
+    } finally {
+      setSavingNote((prev) => ({ ...prev, [attemptId]: false }));
     }
   }
 
@@ -82,6 +127,28 @@ export default function AdminTraineeDetail() {
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-gray-900">{t.full_name || t.username}</h2>
             <div className="text-sm text-gray-400">@{t.username} · Server: {t.server_ip || "not configured"}</div>
+          </div>
+          <div className="flex items-center gap-2 mr-4">
+            <button
+              onClick={() => downloadFile(`/dashboard/report/${traineeId}/pdf`, `Report_${t.full_name || t.username}.pdf`)}
+              className="flex items-center gap-1.5 bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-700 transition"
+            >
+              <Download size={14} /> PDF
+            </button>
+            <button
+              onClick={() => downloadFile(`/dashboard/report/${traineeId}/excel`, `Report_${t.full_name || t.username}.xlsx`)}
+              className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-green-700 transition"
+            >
+              <Download size={14} /> Excel
+            </button>
+            {totalPts > 0 && (earnedPts / totalPts) >= 0.6 && (
+              <button
+                onClick={() => downloadFile(`/dashboard/certificate/${traineeId}`, `Certificate_${t.full_name || t.username}.pdf`)}
+                className="flex items-center gap-1.5 bg-yellow-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-yellow-600 transition"
+              >
+                <Award size={14} /> Certificate
+              </button>
+            )}
           </div>
           <div className="flex gap-6 text-center">
             <div>
@@ -213,6 +280,35 @@ export default function AdminTraineeDetail() {
                                 {q.correct_answer || <span className="text-gray-400 italic">No model answer set</span>}
                               </div>
                             </div>
+                          </div>
+
+                          {/* Trainer Comment Box */}
+                          <div className="mt-4 border-t border-gray-200 pt-4">
+                            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                              <MessageSquare size={13} /> Trainer Comment
+                            </div>
+                            {att.admin_notes && !notes.hasOwnProperty(att.id) && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 mb-2 whitespace-pre-wrap">
+                                {att.admin_notes}
+                              </div>
+                            )}
+                            <textarea
+                              rows={2}
+                              placeholder="Add a comment or feedback for the trainee..."
+                              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800 resize-none"
+                              value={notes[att.id] ?? att.admin_notes ?? ""}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => setNotes((prev) => ({ ...prev, [att.id]: e.target.value }))}
+                            />
+                            {notes.hasOwnProperty(att.id) && notes[att.id] !== (att.admin_notes ?? "") && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleSaveNote(att.id, att.is_correct); }}
+                                disabled={savingNote[att.id]}
+                                className="mt-2 flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 transition disabled:opacity-50"
+                              >
+                                {savingNote[att.id] ? "Saving..." : "Save Comment"}
+                              </button>
+                            )}
                           </div>
 
                           {/* Grading buttons */}

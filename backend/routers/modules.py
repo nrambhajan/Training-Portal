@@ -12,7 +12,7 @@ def list_modules(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    modules = db.query(models.Module).order_by(models.Module.created_at).all()
+    modules = db.query(models.Module).order_by(models.Module.sort_order, models.Module.id).all()
     result = []
     for m in modules:
         out = schemas.ModuleOut.model_validate(m)

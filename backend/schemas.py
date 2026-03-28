@@ -59,17 +59,32 @@ class TraineeOut(BaseModel):
 class ModuleCreate(BaseModel):
     title: str
     description: Optional[str] = None
+    sort_order: int = 0
+    unlock_percent: float = 0
+    is_published: bool = False
+    time_limit: Optional[int] = None  # minutes
+    resources: Optional[List[Any]] = None  # [{title, url}]
 
 
 class ModuleUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    sort_order: Optional[int] = None
+    unlock_percent: Optional[float] = None
+    is_published: Optional[bool] = None
+    time_limit: Optional[int] = None
+    resources: Optional[List[Any]] = None
 
 
 class ModuleOut(BaseModel):
     id: int
     title: str
     description: Optional[str]
+    sort_order: int = 0
+    unlock_percent: float = 0
+    is_published: bool = False
+    time_limit: Optional[int] = None
+    resources: Optional[List[Any]] = None
     created_at: datetime
     question_count: int = 0
 
@@ -79,7 +94,7 @@ class ModuleOut(BaseModel):
 # ── Questions ────────────────────────────────────────────────────────────────
 
 class QuestionCreate(BaseModel):
-    type: str  # mcq | practical | output
+    type: str  # mcq | practical | output | short_answer
     text: str
     options: Optional[List[str]] = None
     correct_answer: Optional[str] = None
@@ -89,6 +104,7 @@ class QuestionCreate(BaseModel):
     points: float = 1.0
     order: int = 0
     hint: Optional[str] = None
+    max_attempts: Optional[int] = None  # null = unlimited
 
 
 class QuestionUpdate(BaseModel):
@@ -102,6 +118,7 @@ class QuestionUpdate(BaseModel):
     points: Optional[float] = None
     order: Optional[int] = None
     hint: Optional[str] = None
+    max_attempts: Optional[int] = None
 
 
 class QuestionOut(BaseModel):
@@ -117,12 +134,13 @@ class QuestionOut(BaseModel):
     points: float
     order: int
     hint: Optional[str]
+    max_attempts: Optional[int]
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
-# Trainee-facing question (hides correct answer)
+# Trainee-facing question (hides correct answer AND verify_command)
 class QuestionOutTrainee(BaseModel):
     id: int
     module_id: int
@@ -132,6 +150,7 @@ class QuestionOutTrainee(BaseModel):
     points: float
     order: int
     hint: Optional[str]
+    max_attempts: Optional[int]
 
     model_config = {"from_attributes": True}
 
@@ -152,6 +171,7 @@ class AttemptOut(BaseModel):
     score: Optional[float]
     attempted_at: datetime
     graded_at: Optional[datetime]
+    admin_notes: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -177,3 +197,4 @@ class QuestionResult(BaseModel):
 
 class GradeAttempt(BaseModel):
     is_correct: bool
+    admin_notes: Optional[str] = None

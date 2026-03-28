@@ -29,6 +29,14 @@ class Module(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    unlock_percent = Column(Float, nullable=True, default=0)
+    # Admin-controlled publish: only published modules visible to trainees
+    is_published = Column(Boolean, nullable=False, default=False)
+    # Timer: time limit in minutes (null = no limit)
+    time_limit = Column(Integer, nullable=True)
+    # Resource links (JSON array of {title, url})
+    resources = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     questions = relationship("Question", back_populates="module", cascade="all, delete-orphan",
@@ -55,6 +63,7 @@ class Question(Base):
     points = Column(Float, nullable=False, default=1.0)
     order = Column(Integer, nullable=False, default=0)
     hint = Column(Text, nullable=True)
+    max_attempts = Column(Integer, nullable=True)  # null = unlimited
     created_at = Column(DateTime, default=datetime.utcnow)
 
     module = relationship("Module", back_populates="questions")
@@ -73,6 +82,7 @@ class Attempt(Base):
     score = Column(Float, nullable=True)
     attempted_at = Column(DateTime, default=datetime.utcnow)
     graded_at = Column(DateTime, nullable=True)
+    admin_notes = Column(Text, nullable=True)  # trainer feedback per attempt
 
     user = relationship("User", back_populates="attempts")
     question = relationship("Question", back_populates="attempts")

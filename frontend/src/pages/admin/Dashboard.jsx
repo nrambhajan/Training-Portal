@@ -2,7 +2,32 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
 import Navbar from "../../components/Navbar";
-import { Users, BookOpen, CheckCircle, XCircle, ChevronRight } from "lucide-react";
+import { Users, BookOpen, CheckCircle, XCircle, ChevronRight, Download, FileSpreadsheet, Award } from "lucide-react";
+import toast from "react-hot-toast";
+
+// Authenticated file download helper
+async function downloadFile(url, fallbackName) {
+  try {
+    const res = await api.get(url, { responseType: "blob" });
+    const blob = new Blob([res.data]);
+    // Try to get filename from Content-Disposition header
+    const cd = res.headers["content-disposition"];
+    let filename = fallbackName;
+    if (cd) {
+      const match = cd.match(/filename="?([^"]+)"?/);
+      if (match) filename = match[1];
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  } catch {
+    toast.error("Download failed");
+  }
+}
 
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
@@ -12,7 +37,7 @@ export default function AdminDashboard() {
     api.get("/dashboard/overview").then((r) => setData(r.data));
   }, []);
 
-  if (!data) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>;
+  if (!data) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -39,8 +64,14 @@ export default function AdminDashboard() {
 
         {/* Trainee table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Trainee Progress</h3>
+            <button
+              onClick={() => downloadFile("/dashboard/export-all-trainees", "All_Trainees_Report.xlsx")}
+              className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 transition"
+            >
+              <FileSpreadsheet size={14} /> Export All (Excel)
+            </button>
           </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
@@ -58,7 +89,7 @@ export default function AdminDashboard() {
               {data.trainees.map((t) => (
                 <tr key={t.trainee_id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 font-medium text-gray-900">{t.trainee_name}</td>
-                  <td className="px-6 py-4 text-gray-500 font-mono text-xs">{t.server_ip || "—"}</td>
+                  <td className="px-6 py-4 text-gray-500 font-mono text-xs">{t.server_ip || "\u2014"}</td>
                   <td className="px-6 py-4 text-center">{t.attempted}/{t.total_questions}</td>
                   <td className="px-6 py-4 text-center">
                     <span className="flex items-center justify-center gap-1">
@@ -72,7 +103,23 @@ export default function AdminDashboard() {
                       {t.percent}%
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); downloadFile(`/dashboard/report/${t.trainee_id}/pdf`, `Report_${t.trainee_name}.pdf`); }}
+                      title="Download PDF Report"
+                      className="text-red-400 hover:text-red-600 transition"
+                    >
+                      <Download size={16} />
+                    </button>
+                    {t.percent >= 60 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); downloadFile(`/dashboard/certificate/${t.trainee_id}`, `Certificate_${t.trainee_name}.pdf`); }}
+                        title="Download Certificate"
+                        className="text-yellow-500 hover:text-yellow-600 transition"
+                      >
+                        <Award size={16} />
+                      </button>
+                    )}
                     <button
                       onClick={() => navigate(`/admin/trainees/${t.trainee_id}`)}
                       className="text-gray-400 hover:text-gray-900 transition"

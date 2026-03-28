@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api";
 import Navbar from "../../components/Navbar";
 import toast from "react-hot-toast";
-import { Plus, Pencil, Trash2, ChevronRight, BookOpen, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronRight, BookOpen, Upload, Eye, EyeOff } from "lucide-react";
 
 function Modal({ title, onClose, children }) {
   return (
@@ -77,6 +77,16 @@ export default function AdminModules() {
     load();
   }
 
+  async function togglePublish(m) {
+    try {
+      await api.put(`/modules/${m.id}`, { is_published: !m.is_published });
+      toast.success(m.is_published ? `"${m.title}" hidden from trainees` : `"${m.title}" published to trainees`);
+      load();
+    } catch {
+      toast.error("Failed to update module");
+    }
+  }
+
   function openEdit(m) {
     setEditing(m);
     setForm({ title: m.title, description: m.description || "" });
@@ -107,11 +117,23 @@ export default function AdminModules() {
               <div className="flex items-center gap-3">
                 <BookOpen size={20} className="text-purple-500" />
                 <div>
-                  <div className="font-semibold text-gray-900">{m.title}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900">{m.title}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.is_published ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                      {m.is_published ? "Published" : "Draft"}
+                    </span>
+                  </div>
                   <div className="text-sm text-gray-500">{m.description || "No description"} · {m.question_count} question{m.question_count !== 1 ? "s" : ""}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => togglePublish(m)}
+                  title={m.is_published ? "Hide from trainees" : "Publish to trainees"}
+                  className={`p-2 rounded-lg transition ${m.is_published ? "text-green-600 hover:text-red-500 hover:bg-red-50" : "text-gray-400 hover:text-green-600 hover:bg-green-50"}`}
+                >
+                  {m.is_published ? <Eye size={16} /> : <EyeOff size={16} />}
+                </button>
                 <button onClick={() => openEdit(m)} className="p-2 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition"><Pencil size={16} /></button>
                 <button onClick={() => del(m.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition"><Trash2 size={16} /></button>
                 <button onClick={() => navigate(`/admin/modules/${m.id}/questions`)} className="p-2 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition"><ChevronRight size={18} /></button>

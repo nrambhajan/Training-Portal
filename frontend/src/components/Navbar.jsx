@@ -15,7 +15,10 @@ export default function Navbar({ role }) {
     { to: "/admin/trainees", label: "Trainees" },
   ];
 
-  const traineeLinks = [{ to: "/trainee", label: "My Labs" }];
+  const traineeLinks = [
+    { to: "/trainee", label: "My Labs" },
+    { to: "/trainee/leaderboard", label: "Leaderboard" },
+  ];
   const links = role === "admin" ? adminLinks : traineeLinks;
 
   return (
